@@ -18,18 +18,19 @@ export function useOrganization() {
       return;
     }
 
+    // For demo/mock user, provide complete organization data
     if (user.uid === 'mock-user-123') {
-      if (localStorage.getItem('fairlens_onboarding_complete') === 'true') {
-        setOrganization({
-          orgId: 'mock-org-123',
-          name: 'Tech Corp India',
-          sector: 'Technology',
-          headcount: '500-2000',
-          states: ['Karnataka', 'Maharashtra']
-        });
-      } else {
-        setOrganization(null);
-      }
+      setOrganization({
+        orgId: 'mock-org-123',
+        name: 'Tech Corp India',
+        sector: 'Technology',
+        headcount: '500-2000',
+        states: ['Karnataka', 'Maharashtra'],
+        // Additional fields for demo
+        website: 'www.techcorp.com',
+        founded: 2015,
+        employees: 1200
+      });
       setFetchedUid(user.uid);
       return;
     }

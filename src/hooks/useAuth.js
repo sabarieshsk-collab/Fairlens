@@ -8,12 +8,14 @@ export function useAuth() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Only use mock auth if explicitly enabled via login
     if (localStorage.getItem('fairlens_mock_auth') === 'true') {
       setUser({ uid: 'mock-user-123', email: 'hr@example.com', displayName: 'HR Manager' });
       setLoading(false);
       return;
     }
 
+    // Try to get actual Firebase user
     try {
       const unsubscribe = onAuthStateChanged(
         auth,

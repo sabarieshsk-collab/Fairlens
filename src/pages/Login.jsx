@@ -13,8 +13,8 @@ export default function Login() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Clear any existing auth on login page mount
     localStorage.removeItem('fairlens_mock_auth');
-    localStorage.removeItem('fairlens_onboarding_complete');
   }, []);
 
   const handleLogin = async (e) => {
@@ -23,11 +23,12 @@ export default function Login() {
     setError('');
 
     if (!process.env.REACT_APP_FIREBASE_API_KEY || process.env.REACT_APP_FIREBASE_API_KEY === 'your_value_here') {
+      // Demo mode: accept any email with 'hr' in it
       if (email.toLowerCase().includes('hr') && password.length > 0) {
         localStorage.setItem('fairlens_mock_auth', 'true');
-        window.location.href = '/onboarding';
+        navigate('/dashboard');
       } else {
-        setError('Unauthorized access. Your email address must contain "hr" to access this system.');
+        setError('Demo Access: Use an email containing "hr" (e.g., hr@example.com) and any password to sign in.');
         setLoading(false);
       }
       return;

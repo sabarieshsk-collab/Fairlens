@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeIcon,
   PlusCircleIcon,
@@ -6,11 +6,14 @@ import {
   BellIcon,
   DocumentTextIcon,
   Cog6ToothIcon,
+  WrenchIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const navItems = [
@@ -19,6 +22,7 @@ export default function Sidebar() {
     { path: '/audit/history', label: 'Audit History', icon: ClockIcon },
     { path: '/monitoring', label: 'Monitoring', icon: BellIcon },
     { path: '/reports', label: 'Compliance Reports', icon: DocumentTextIcon },
+    { path: '/remediation', label: 'Remediation', icon: WrenchIcon },
     { path: '/settings', label: 'Settings', icon: Cog6ToothIcon },
   ];
 
@@ -27,6 +31,11 @@ export default function Sidebar() {
   const getInitials = () => {
     if (!user) return '?';
     return user.email?.charAt(0).toUpperCase() || '?';
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('fairlens_mock_auth');
+    navigate('/login');
   };
 
   return (
@@ -59,7 +68,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile */}
-      <div className="border-t border-ink-soft p-4">
+      <div className="border-t border-ink-soft p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
             <span className="text-white font-bold text-sm">
@@ -73,6 +82,15 @@ export default function Sidebar() {
             <p className="text-xs text-ink-faint truncate">{user?.email}</p>
           </div>
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-ink-faint hover:text-paper hover:bg-ink-soft transition-colors text-sm font-medium"
+        >
+          <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          <span>Sign Out</span>
+        </button>
       </div>
     </div>
   );

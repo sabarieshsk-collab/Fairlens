@@ -1,0 +1,36 @@
+{
+  "name": "fairlens-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "date-fns": "^4.4.0",
+    "firebase": "^12.17.0",
+    "i18next": "^23.16.8",
+    "jspdf": "^4.2.1",
+    "ml-logistic-regression": "^2.0.0",
+    "papaparse": "^5.5.3",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-circular-progressbar": "^2.2.0",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^15.0.0",
+    "react-hot-toast": "^2.6.0",
+    "react-i18next": "^15.4.0",
+    "react-is": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.15.0",
+    "tailwindcss": "^3.4.1",
+    "vite": "6.0.7",
+    "web-vitals": "^2.1.4"
+  }
+}

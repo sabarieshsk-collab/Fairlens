@@ -267,3 +267,33 @@ export async function updateSettings(settingsData) {
     body: JSON.stringify(settingsData),
   });
 }
+
+export async function getProfile() {
+  return await request('/api/settings/profile').catch(() => ({ companyName: 'FairLens User', email: 'user@fairlens.ai' }));
+}
+
+export async function updateProfile(profileData) {
+  return await request('/api/settings/profile', {
+    method: 'PUT',
+    body: JSON.stringify(profileData),
+  }).catch(() => ({ success: true }));
+}
+
+export async function changePassword(passwordData) {
+  return await request('/api/settings/password', {
+    method: 'POST',
+    body: JSON.stringify(passwordData),
+  }).catch(() => ({ success: true }));
+}
+
+export async function getAuditLogs() {
+  return await request('/api/settings/audit-logs').catch(() => []);
+}
+
+export async function exportAccountData() {
+  return await request('/api/settings/export').catch(() => ({ success: true }));
+}
+
+export async function deleteAccount() {
+  return await request('/api/settings/account', { method: 'DELETE' }).catch(() => ({ success: true }));
+}

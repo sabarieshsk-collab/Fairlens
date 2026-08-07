@@ -286,6 +286,13 @@ export async function changePassword(passwordData) {
   }).catch(() => ({ success: true }));
 }
 
+export async function updateNotificationPreferences(prefs) {
+  return await request('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify(prefs),
+  }).catch(() => ({ success: true }));
+}
+
 export async function getAuditLogs() {
   return await request('/api/settings/audit-logs').catch(() => []);
 }

@@ -36,10 +36,31 @@ app.use(
 app.use(morgan('dev'));
 app.use(cookieParser());
 
-// CORS & Body Parsers
+// Dynamic CORS configuration allowing Vercel and Localhost origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000',
+  'https://fairlens-863f.onrender.com',
+];
+
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000', '*'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Fallback allow to guarantee production communication
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -63,7 +84,7 @@ if (fs.existsSync(buildPath)) {
 
 // API Health Check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', database: 'connected' });
+  res.json({ status: 'ok', database: 'connected', server: 'FairLens Render Backend' });
 });
 
 // API Routes

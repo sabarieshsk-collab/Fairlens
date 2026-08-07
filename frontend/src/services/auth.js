@@ -1,8 +1,22 @@
-const API_BASE_URL = (
-  process.env.REACT_APP_API_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000')
-).replace(/\/$/, '');
+const getApiBaseUrl = () => {
+  let url = '';
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    url = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || '';
+  }
+  if (!url && typeof process !== 'undefined' && process.env) {
+    url = process.env.VITE_API_URL || process.env.REACT_APP_API_URL || '';
+  }
+  if (!url) {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      url = 'http://localhost:5000';
+    } else {
+      url = 'https://fairlens-863f.onrender.com';
+    }
+  }
+  return url.replace(/\/$/, '');
+};
 
+const API_BASE_URL = getApiBaseUrl();
 
 function getAuthHeaders() {
   const token = localStorage.getItem('fairlens_token');
@@ -19,86 +33,71 @@ async function request(path, options = {}) {
       ...options,
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    const payload = contentType.includes('application/json') ? await response.json() : await response.text();
-
     if (!response.ok) {
-      const message = typeof payload === 'string' ? payload : payload?.message || 'Request failed';
-      throw new Error(message);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
     }
 
-    return payload;
-  } catch (err) {
-    if (err.name === 'TypeError' && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend process (node server.js) is running.`);
-    }
-    throw err;
+    return await response.json();
+  } catch (error) {
+    console.error(`[Auth API Error] ${path}:`, error.message);
+    throw error;
   }
 }
 
-export async function registerCompany({ companyName, email, password, confirmPassword }) {
-  const response = await request('/api/auth/register', {
+export async function loginCompany(credentials) {
+  const data = await request('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ companyName, email, password, confirmPassword }),
+    body: JSON.stringify(credentials),
   });
-  
-  if (response.token) {
-    localStorage.setItem('fairlens_token', response.token);
-    localStorage.setItem('fairlens_company', JSON.stringify(response.company));
+
+  if (data?.token) {
+    localStorage.setItem('fairlens_token', data.token);
   }
-  
-  return response;
+
+  return data;
 }
 
-export async function loginCompany(email, password) {
-  const response = await request('/api/auth/login', {
+export async function registerCompany(companyData) {
+  const data = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(companyData),
   });
-  
-  if (response.token) {
-    localStorage.setItem('fairlens_token', response.token);
-    localStorage.setItem('fairlens_company', JSON.stringify(response.company));
+
+  if (data?.token) {
+    localStorage.setItem('fairlens_token', data.token);
   }
-  
-  return response;
+
+  return data;
 }
 
-export async function googleLoginCompany(idToken, userData = {}) {
-  const response = await request('/api/auth/google', {
+export async function googleLoginCompany(idToken, userInfo = {}) {
+  const data = await request('/api/auth/google', {
     method: 'POST',
     body: JSON.stringify({
       idToken,
-      name: userData.name,
-      email: userData.email,
-      photoURL: userData.photoURL,
-      uid: userData.uid,
+      userInfo,
+      email: userInfo.email,
+      companyName: userInfo.name || userInfo.email?.split('@')[0] || 'Google User',
     }),
   });
 
-  if (response.token) {
-    localStorage.setItem('fairlens_token', response.token);
-    localStorage.setItem('fairlens_company', JSON.stringify(response.company));
+  if (data?.token) {
+    localStorage.setItem('fairlens_token', data.token);
   }
 
-  return response;
+  return data;
 }
 
 export async function verifyToken() {
-  const response = await request('/api/auth/verify');
-  return response;
-}
+  const token = localStorage.getItem('fairlens_token');
+  if (!token) return null;
 
-export function logout() {
-  localStorage.removeItem('fairlens_token');
-  localStorage.removeItem('fairlens_company');
-}
-
-export function getCompany() {
   try {
-    const data = localStorage.getItem('fairlens_company');
-    return data ? JSON.parse(data) : null;
-  } catch {
+    const data = await request('/api/auth/verify');
+    return data?.company || data?.user || null;
+  } catch (error) {
+    localStorage.removeItem('fairlens_token');
     return null;
   }
 }
@@ -107,6 +106,15 @@ export function isLoggedIn() {
   return !!localStorage.getItem('fairlens_token');
 }
 
-export function getApiBaseUrl() {
-  return API_BASE_URL;
+export function getCompany() {
+  return null;
+}
+
+export function logoutCompany() {
+  localStorage.removeItem('fairlens_token');
+  return { success: true };
+}
+
+export function logout() {
+  return logoutCompany();
 }

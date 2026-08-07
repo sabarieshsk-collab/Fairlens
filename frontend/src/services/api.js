@@ -1,9 +1,22 @@
-const API_BASE_URL = (
-  process.env.REACT_APP_API_URL ||
-  process.env.VITE_API_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000')
-).replace(/\/$/, '');
+const getApiBaseUrl = () => {
+  let url = '';
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    url = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || '';
+  }
+  if (!url && typeof process !== 'undefined' && process.env) {
+    url = process.env.VITE_API_URL || process.env.REACT_APP_API_URL || '';
+  }
+  if (!url) {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      url = 'http://localhost:5000';
+    } else {
+      url = 'https://fairlens-863f.onrender.com';
+    }
+  }
+  return url.replace(/\/$/, '');
+};
 
+const API_BASE_URL = getApiBaseUrl();
 
 function getAuthHeaders() {
   const token = localStorage.getItem('fairlens_token');
@@ -23,23 +36,6 @@ function normalizeAudit(audit) {
     auditName: audit.auditName || audit.cycleName || 'Unnamed Cycle',
     processedAt: audit.processedAt || audit.createdAt,
     status: audit.status || audit.overallStatus || 'pending',
-    stats: {
-      total: 0,
-      hired: 0,
-      rejected: 0,
-      hireRate: '0%',
-      rejectedAtScreening: 0,
-      rejectedAtTechnical: 0,
-      unmatchedResumes: 0,
-      hiredCandidates: [],
-      rejectedCandidates: [],
-      genderDistribution: { Female: 0, Male: 0 },
-      collegeTierDistribution: { 'Tier 1': 0, 'Tier 2': 0, 'Tier 3': 0 },
-      ...(audit.stats || {}),
-    },
-    fairnessMetrics: audit.fairnessMetrics || {},
-    biasDrivers: audit.biasDrivers || [],
-    allCandidates: audit.allCandidates || [],
   };
 }
 
@@ -50,112 +46,96 @@ async function request(path, options = {}) {
       ...options,
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    const payload = contentType.includes('application/json') ? await response.json() : await response.text();
-
     if (!response.ok) {
-      const message = typeof payload === 'string' ? payload : payload?.message || 'Request failed';
-      throw new Error(message);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
     }
 
-    return payload;
-  } catch (err) {
-    if (err.name === 'TypeError' && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      throw new Error(`Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend process (node server.js) is running.`);
-    }
-    throw err;
+    return await response.json();
+  } catch (error) {
+    console.error(`[API Error] ${path}:`, error.message);
+    throw error;
   }
 }
 
-// AUDITS API
-export async function createAudit({ auditName, jobRole, department = '', csvFile = null, resumeFiles = [], candidateDetails = [] }) {
-  let csvText = '';
-  let csvFileName = '';
-
-  if (csvFile) {
-    csvText = typeof csvFile === 'string' ? csvFile : await csvFile.text();
-    csvFileName = typeof csvFile === 'string' ? '' : (csvFile.name || 'decisions.csv');
-  }
-
-  const resumeFileNames = resumeFiles.map((file) => (typeof file === 'string' ? file : file?.name)).filter(Boolean);
-
-  const payload = await request('/api/audits', {
+export async function createAudit(auditData) {
+  const data = await request('/api/audits', {
     method: 'POST',
-    body: JSON.stringify({
-      auditName,
-      jobRole,
-      department,
-      csvText,
-      csvFileName,
-      resumeFileNames,
-      candidateDetails,
-    }),
+    body: JSON.stringify(auditData),
   });
-
-  return normalizeAudit(payload);
+  return normalizeAudit(data);
 }
 
 export async function getAudits() {
-  const audits = await request('/api/audits');
-  return Array.isArray(audits) ? audits.map(normalizeAudit) : [];
+  const list = await request('/api/audits');
+  return (list || []).map(normalizeAudit);
 }
 
 export async function getLatestAudit() {
-  const audit = await request('/api/audits/latest');
-  return normalizeAudit(audit);
+  const data = await request('/api/audits/latest');
+  return normalizeAudit(data);
 }
 
-export async function getAuditById(id) {
-  const audit = await request(`/api/audits/${id}`);
-  return normalizeAudit(audit);
+export async function getAuditById(auditId) {
+  const data = await request(`/api/audits/${auditId}`);
+  return normalizeAudit(data);
 }
 
-export async function duplicateAudit(id) {
-  const audit = await request(`/api/audits/${id}/duplicate`, {
+export async function duplicateAudit(auditId) {
+  const data = await request(`/api/audits/${auditId}/duplicate`, {
     method: 'POST',
   });
-  return normalizeAudit(audit);
+  return normalizeAudit(data);
 }
 
-export async function deleteAudit(id) {
-  return request(`/api/audits/${id}`, {
+export async function deleteAudit(auditId) {
+  return await request(`/api/audits/${auditId}`, {
     method: 'DELETE',
   });
 }
 
 export async function deleteAllAudits() {
-  return request('/api/audits/all', {
+  return await request('/api/audits', {
     method: 'DELETE',
   });
 }
 
-// MONITORING API
-export async function getMonitoringData() {
-  return request('/api/monitoring');
-}
-
-export async function getMonitoringTrends(period = '6months') {
-  return request(`/api/monitoring/trends?period=${period}`);
-}
-
-// COMPLIANCE REPORTS API
 export async function getReports() {
-  return request('/api/reports');
+  return await request('/api/reports');
 }
 
-export async function generateReport({ auditId, type = 'ai_fairness', format = 'pdf' }) {
-  return request('/api/reports/generate', {
+export async function generateReport(reportParams) {
+  return await request('/api/reports/generate', {
     method: 'POST',
-    body: JSON.stringify({ auditId, type, format }),
+    body: JSON.stringify(reportParams),
   });
 }
 
-export async function getReportById(id) {
-  return request(`/api/reports/${id}`);
+export async function getReportById(reportId) {
+  return await request(`/api/reports/${reportId}`);
 }
 
-export async function downloadReport(id) {
-  return request(`/api/reports/${id}/download`);
+export async function downloadReport(reportId) {
+  const token = localStorage.getItem('fairlens_token');
+  const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}/download`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download report PDF');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `FairLens_Report_${reportId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function downloadReportPdf(auditId = 'latest') {
@@ -242,73 +222,48 @@ export async function downloadReportJson(auditId = 'latest') {
   window.URL.revokeObjectURL(url);
 }
 
-export async function deleteReport(id) {
-  return request(`/api/reports/${id}`, {
+export async function deleteReport(reportId) {
+  return await request(`/api/reports/${reportId}`, {
     method: 'DELETE',
   });
 }
 
-// NOTIFICATIONS API
-export async function getNotifications(unreadOnly = false) {
-  return request(`/api/notifications?unreadOnly=${unreadOnly}`);
+export async function globalSearch(query) {
+  if (!query) return { audits: [], candidates: [] };
+  return await request(`/api/search?q=${encodeURIComponent(query)}`).catch(() => ({ audits: [], candidates: [] }));
+}
+
+export async function getNotifications() {
+  return await request('/api/notifications').catch(() => []);
+}
+
+export async function markNotificationRead(id) {
+  return await request(`/api/notifications/${id}/read`, { method: 'PATCH' }).catch(() => ({}));
 }
 
 export async function markNotificationAsRead(id) {
-  return request(`/api/notifications/${id}/read`, {
-    method: 'PATCH',
-  });
+  return await markNotificationRead(id);
 }
 
 export async function markAllNotificationsAsRead() {
-  return request('/api/notifications/read-all', {
-    method: 'PATCH',
+  return await request('/api/notifications/read-all', { method: 'PATCH' }).catch(() => ({}));
+}
+
+export async function getMonitoringStats() {
+  return await request('/api/monitoring').catch(() => ({}));
+}
+
+export async function getMonitoringData() {
+  return await getMonitoringStats();
+}
+
+export async function getSettings() {
+  return await request('/api/settings').catch(() => ({}));
+}
+
+export async function updateSettings(settingsData) {
+  return await request('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify(settingsData),
   });
-}
-
-export async function deleteNotification(id) {
-  return request(`/api/notifications/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-// SEARCH API
-export async function globalSearch(query) {
-  return request(`/api/search?q=${encodeURIComponent(query)}`);
-}
-
-// SETTINGS API
-export async function getProfile() {
-  return request('/api/settings/profile');
-}
-
-export async function updateProfile({ companyName, email }) {
-  return request('/api/settings/profile', {
-    method: 'PATCH',
-    body: JSON.stringify({ companyName, email }),
-  });
-}
-
-export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
-  return request('/api/settings/password', {
-    method: 'PATCH',
-    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
-  });
-}
-
-export async function updateNotificationPreferences(preferences) {
-  return request('/api/settings/notifications/preferences', {
-    method: 'PATCH',
-    body: JSON.stringify(preferences),
-  });
-}
-
-export async function deleteAccount({ password, confirmation }) {
-  return request('/api/settings/account', {
-    method: 'DELETE',
-    body: JSON.stringify({ password, confirmation }),
-  });
-}
-
-export function getApiBaseUrl() {
-  return API_BASE_URL;
 }

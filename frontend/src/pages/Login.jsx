@@ -90,7 +90,8 @@ export default function Login() {
       } else if (err.code === 'auth/popup-blocked') {
         setError('Popup was blocked by your browser. Please allow popups for Google sign-in.');
       } else if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain unauthorized. Please add "localhost" in Firebase Console -> Authentication -> Settings -> Authorized domains.');
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
+        setError(`Domain unauthorized (${currentDomain}). Please add "${currentDomain}" in Firebase Console -> Authentication -> Settings -> Authorized domains.`);
       } else if (err.code === 'auth/cancelled-popup-request') {
         // Ignore duplicate request
       } else {

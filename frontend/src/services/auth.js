@@ -45,14 +45,24 @@ async function request(path, options = {}) {
   }
 }
 
-export async function loginCompany(credentials) {
+export async function loginCompany(emailOrCredentials, password) {
+  let payload;
+  if (typeof emailOrCredentials === 'object' && emailOrCredentials !== null) {
+    payload = emailOrCredentials;
+  } else {
+    payload = { email: emailOrCredentials, password };
+  }
+
   const data = await request('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify(credentials),
+    body: JSON.stringify(payload),
   });
 
   if (data?.token) {
     localStorage.setItem('fairlens_token', data.token);
+  }
+  if (data?.company) {
+    localStorage.setItem('fairlens_company', JSON.stringify(data.company));
   }
 
   return data;
@@ -66,6 +76,9 @@ export async function registerCompany(companyData) {
 
   if (data?.token) {
     localStorage.setItem('fairlens_token', data.token);
+  }
+  if (data?.company) {
+    localStorage.setItem('fairlens_company', JSON.stringify(data.company));
   }
 
   return data;
@@ -84,6 +97,9 @@ export async function googleLoginCompany(idToken, userInfo = {}) {
 
   if (data?.token) {
     localStorage.setItem('fairlens_token', data.token);
+  }
+  if (data?.company) {
+    localStorage.setItem('fairlens_company', JSON.stringify(data.company));
   }
 
   return data;
@@ -107,11 +123,21 @@ export function isLoggedIn() {
 }
 
 export function getCompany() {
-  return null;
+  try {
+    const raw = localStorage.getItem('fairlens_company');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Failed to parse cached company from localStorage:', err.message);
+    localStorage.removeItem('fairlens_company');
+    return null;
+  }
 }
 
 export function logoutCompany() {
   localStorage.removeItem('fairlens_token');
+  localStorage.removeItem('fairlens_company');
+  localStorage.removeItem('fairlens_user');
   return { success: true };
 }
 

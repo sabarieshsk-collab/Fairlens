@@ -40,7 +40,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await loginCompany(email.trim(), password);
+      const response = await loginCompany({ email: email.trim(), password });
       if (response?.company) {
         setUser?.(response.company);
       }

@@ -3,7 +3,10 @@
  * Extracts structured candidate data from resumes and generates explanations for bias, compliance, and remediation.
  */
 
-const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+const GEMINI_API_KEY =
+  (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.REACT_APP_GEMINI_API_KEY)) ||
+  (typeof process !== 'undefined' && process.env && (process.env.VITE_GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY)) ||
+  '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 

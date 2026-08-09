@@ -77,9 +77,12 @@ if (!fs.existsSync(uploadDir)) {
 }
 app.use('/uploads', express.static(uploadDir));
 
+const distPath = path.join(__dirname, '../frontend/dist');
 const buildPath = path.join(__dirname, '../frontend/build');
-if (fs.existsSync(buildPath)) {
-  app.use(express.static(buildPath));
+const staticPath = fs.existsSync(distPath) ? distPath : (fs.existsSync(buildPath) ? buildPath : null);
+
+if (staticPath) {
+  app.use(express.static(staticPath));
 }
 
 // API Health Check
@@ -104,12 +107,13 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-  const indexPath = path.join(buildPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.json({ name: 'FairLens API Server', status: 'ok', message: 'FairLens Backend Operational' });
+  if (staticPath) {
+    const indexPath = path.join(staticPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
   }
+  res.json({ name: 'FairLens API Server', status: 'ok', message: 'FairLens Backend Operational' });
 });
 
 // Error handling

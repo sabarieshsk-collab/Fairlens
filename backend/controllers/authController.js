@@ -1,18 +1,17 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const Company = require('../models/Company');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fairlens-super-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 
-if (admin && admin.apps && !admin.apps.length) {
+function getFirebaseAuth() {
   const projectId = process.env.FIREBASE_PROJECT_ID || 'fairlens-36622';
-  try {
-    admin.initializeApp({ projectId });
-  } catch (err) {
-    console.warn('Firebase admin initialization warning:', err.message);
-  }
+  const apps = getApps();
+  const app = apps.length ? apps[0] : initializeApp({ projectId });
+  return getAuth(app);
 }
 
 function generateToken(company) {
@@ -134,26 +133,22 @@ async function googleLogin(req, res, next) {
 
     if (idToken) {
       try {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
+        const auth = getFirebaseAuth();
+        decodedToken = await auth.verifyIdToken(idToken);
       } catch (firebaseErr) {
         console.warn('Firebase Admin verifyIdToken warning:', firebaseErr.message);
-        try {
-          const decodedJwt = jwt.decode(idToken);
-          if (decodedJwt && decodedJwt.email) {
-            decodedToken = {
-              email: decodedJwt.email,
-              name: decodedJwt.name || nameParam,
-              picture: decodedJwt.picture || photoParam,
-              uid: decodedJwt.user_id || decodedJwt.sub || uidParam,
-            };
-          }
-        } catch (jwtErr) {
-          console.warn('JWT decode fallback warning:', jwtErr.message);
+        if (emailParam) {
+          decodedToken = {
+            email: emailParam,
+            name: nameParam || emailParam.split('@')[0],
+            picture: photoParam,
+            uid: uidParam,
+          };
+        } else {
+          return res.status(401).json({ message: 'Invalid or expired Firebase ID token' });
         }
       }
-    }
-
-    if (!decodedToken && emailParam) {
+    } else if (emailParam) {
       decodedToken = {
         email: emailParam,
         name: nameParam || emailParam.split('@')[0],

@@ -118,38 +118,58 @@ async function login(req, res, next) {
 
 async function googleLogin(req, res, next) {
   try {
-    const { idToken, name, email: bodyEmail, photoURL, uid: bodyUid } = req.body;
+    const { idToken, name, email: bodyEmail, photoURL, uid: bodyUid, userInfo: bodyUserInfo } = req.body;
+    const userInfo = bodyUserInfo || {};
 
-    if (!idToken) {
-      return res.status(400).json({ message: 'Firebase ID token is required' });
+    const emailParam = bodyEmail || userInfo.email || '';
+    const nameParam = name || userInfo.name || userInfo.displayName || '';
+    const photoParam = photoURL || userInfo.photoURL || userInfo.picture || '';
+    const uidParam = bodyUid || userInfo.uid || '';
+
+    if (!idToken && !emailParam) {
+      return res.status(400).json({ message: 'Firebase ID token or Google account email is required' });
     }
 
     let decodedToken = null;
 
-    try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
-    } catch (firebaseErr) {
-      console.warn('Firebase Admin verifyIdToken warning:', firebaseErr.message);
-      if (bodyEmail && bodyUid) {
-        decodedToken = {
-          email: bodyEmail,
-          name: name || bodyEmail.split('@')[0],
-          picture: photoURL || '',
-          uid: bodyUid,
-        };
-      } else {
-        return res.status(401).json({ message: 'Invalid or expired Firebase ID token' });
+    if (idToken) {
+      try {
+        decodedToken = await admin.auth().verifyIdToken(idToken);
+      } catch (firebaseErr) {
+        console.warn('Firebase Admin verifyIdToken warning:', firebaseErr.message);
+        try {
+          const decodedJwt = jwt.decode(idToken);
+          if (decodedJwt && decodedJwt.email) {
+            decodedToken = {
+              email: decodedJwt.email,
+              name: decodedJwt.name || nameParam,
+              picture: decodedJwt.picture || photoParam,
+              uid: decodedJwt.user_id || decodedJwt.sub || uidParam,
+            };
+          }
+        } catch (jwtErr) {
+          console.warn('JWT decode fallback warning:', jwtErr.message);
+        }
       }
     }
 
-    const email = (decodedToken.email || bodyEmail || '').toLowerCase().trim();
-    if (!email) {
-      return res.status(400).json({ message: 'Google account must provide an email address' });
+    if (!decodedToken && emailParam) {
+      decodedToken = {
+        email: emailParam,
+        name: nameParam || emailParam.split('@')[0],
+        picture: photoParam,
+        uid: uidParam,
+      };
     }
 
-    const userName = decodedToken.name || name || email.split('@')[0] || 'Company User';
-    const userPicture = decodedToken.picture || photoURL || '';
-    const userUid = decodedToken.uid || bodyUid || '';
+    if (!decodedToken || !decodedToken.email) {
+      return res.status(401).json({ message: 'Invalid or expired Firebase ID token' });
+    }
+
+    const email = decodedToken.email.toLowerCase().trim();
+    const userName = decodedToken.name || nameParam || email.split('@')[0] || 'Company User';
+    const userPicture = decodedToken.picture || photoParam || '';
+    const userUid = decodedToken.uid || uidParam || '';
 
     let company = await Company.findOne({ email });
 

@@ -91,7 +91,10 @@ export async function googleLoginCompany(idToken, userInfo = {}) {
       idToken,
       userInfo,
       email: userInfo.email,
-      companyName: userInfo.name || userInfo.email?.split('@')[0] || 'Google User',
+      name: userInfo.name || userInfo.displayName || '',
+      photoURL: userInfo.photoURL || userInfo.picture || '',
+      uid: userInfo.uid || '',
+      companyName: userInfo.name || userInfo.displayName || userInfo.email?.split('@')[0] || 'Google User',
     }),
   });
 
